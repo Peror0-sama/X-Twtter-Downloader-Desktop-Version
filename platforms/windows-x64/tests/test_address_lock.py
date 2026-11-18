@@ -93,6 +93,7 @@ class AddressLockTests(unittest.TestCase):
         process.events.put({'type':'browser_focus'})
         self.dialog.process=process
         self.dialog.poll()
+        self.dialog.send.assert_called_with({'op': 'focus'})
         self.assertEqual(self.address.edit_state,'locked')
         self.assertFalse(self.address.hasFocus())
         self.dialog.process=None

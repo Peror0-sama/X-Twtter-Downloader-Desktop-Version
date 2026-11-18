@@ -1,4 +1,6 @@
-# XDownloader 1.3.5
+# XDownloader 1.3.6
+
+修复了内嵌网页无法输入的问题。下文的 1.3.5 下载包说明保留用于旧版发行包。
 
 Windows 10 x86（32 位） 本地 X / Twitter 图片、视频和动图下载器。制作人：**Peror0_sama**。
 

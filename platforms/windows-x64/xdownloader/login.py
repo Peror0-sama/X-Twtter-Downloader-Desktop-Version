@@ -11,6 +11,19 @@ from .webview import BrowserProcess
 
 class BrowserArea(QWidget):
     resized = Signal()
+    focus_requested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self.focus_requested.emit()
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.focus_requested.emit()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -128,6 +141,7 @@ class LoginDialog(QDialog):
         self.view = BrowserArea(self)
         self.view.setObjectName('loginBrowser')
         self.view.resized.connect(self.resize_browser)
+        self.view.focus_requested.connect(lambda: self.send({'op': 'focus'}))
         layout.addWidget(self.view, 1)
         row = QHBoxLayout()
         self.status = QLabel('加载中…')
@@ -227,6 +241,7 @@ class LoginDialog(QDialog):
                 self.use.setEnabled(True)
             elif kind == 'browser_focus':
                 self.address.lock()
+                self.send({'op': 'focus'})
             elif kind in ('navigation', 'address'):
                 self.address.set_page_url(event.get('url', self.address.page_url))
                 if kind == 'navigation':

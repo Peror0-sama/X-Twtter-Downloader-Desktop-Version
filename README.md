@@ -1,10 +1,12 @@
-# XDownloader 1.3.5
+# XDownloader 1.3.6
 
 X / Twitter 图片、视频、动图及广播回放下载器。制作人：**Peror0_sama**。
 
+1.3.6：修复了内嵌网页无法输入的问题（Windows）。
+
 ## 下载与使用
 
-三个平台的安装包均可在 [Releases 发布页](https://github.com/Peror0-sama/X-Twtter-Downloader-Desktop-Version/releases/tag/v1.3.5) 下载。
+以下链接为已发布的 1.3.5 安装包；1.3.6 源码已更新。三个平台的安装包均可在 [Releases 发布页](https://github.com/Peror0-sama/X-Twtter-Downloader-Desktop-Version/releases/tag/v1.3.5) 下载。
 
 | 平台 | 安装包 | 源码与说明 |
 | --- | --- | --- |

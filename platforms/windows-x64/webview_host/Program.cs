@@ -56,15 +56,28 @@ internal sealed class BrowserForm : Form
         Shown += async (_, _) => await Initialize();
         FormClosed += (_, _) => { view.Dispose(); Program.Send(new { type = "closed" }); };
     }
+    void FocusBrowser()
+    {
+        if (mode != "login" || !ready || IsDisposed || !Visible) return;
+        view.Focus();
+    }
+    protected override void OnGotFocus(EventArgs e)
+    {
+        base.OnGotFocus(e);
+        FocusBrowser();
+    }
     async Task Initialize()
     {
         try
         {
             if (mode == "login" && config.TryGetProperty("parent", out var parent))
             {
+                // Keep WinForms managed window state consistent with WS_CHILD.
+                TopLevel = false;
                 SetParent(Handle, (nint)parent.GetInt64());
                 SetStyle(Handle, -16, (nint)((GetStyle(Handle, -16).ToInt64() | 0x40000000L) & ~0x80000000L));
                 Location = Point.Empty;
+                Show();
             }
             var args = "--disable-features=msEdgeSidebarV2";
             var proxyMode = TextValue("proxy_mode", "system");
@@ -199,6 +212,7 @@ internal sealed class BrowserForm : Form
             var core = view.CoreWebView2;
             switch (command.GetProperty("op").GetString())
             {
+                case "focus": FocusBrowser(); break;
                 case "close": Close(); break;
                 case "resize": ClientSize = new Size(command.GetProperty("width").GetInt32(), command.GetProperty("height").GetInt32()); Location = Point.Empty; break;
                 case "reload": core.Reload(); break;
