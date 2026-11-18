@@ -35,9 +35,6 @@ XDownloader-GitHub/
     └── 三个平台的 ZIP 安装包
 ```
 
-## 上传 GitHub
-
-源码和文档上传到仓库；`release` 中的三个 ZIP 上传到同一个 Release 的附件区域。`.gitignore` 已将安装包排除在源码提交之外。
 
 ## 许可
 
