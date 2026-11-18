@@ -1,0 +1,48 @@
+﻿第三方组件说明
+
+本文档由AI生成。
+
+本应用将 Python、PySide6/Qt、WebView2、.NET、Requests、Beautiful Soup、Pillow、FFmpeg 及其运行依赖打包进 EXE。
+用户无需另装 Python、浏览器或下载库。Windows 自身提供的系统 API/DLL 属于操作系统基础组件。
+
+主要组件与源码：
+Python: https://www.python.org/
+PySide6 / Qt: https://code.qt.io/cgit/pyside/pyside-setup.git/
+Qt WebEngine: https://code.qt.io/cgit/qt/qtwebengine.git/
+Requests: https://github.com/psf/requests
+Beautiful Soup: https://www.crummy.com/software/BeautifulSoup/
+Pillow: https://github.com/python-pillow/Pillow
+PyInstaller: https://github.com/pyinstaller/pyinstaller
+
+许可证原文位于 third_party/licenses，具体组件仍适用各自许可证。
+1.2 新增可选 GIF 转换，使用内嵌 FFmpeg 8.1.2-full_build-www.gyan.dev（GPL v3）。
+FFmpeg 构建来源：https://www.gyan.dev/ffmpeg/builds/
+对应 FFmpeg 源码：https://github.com/FFmpeg/FFmpeg/commit/38b88335f9
+构建配置、来源说明和许可证见 third_party/ffmpeg/README.txt 与 LICENSE。
+FFmpeg 仅在选择转换 GIF 时处理下载到本地的动图；保留 MP4 不转码。
+
+1.3.2 非商业发布修订已移除 gallery-dl 及其代码、安装依赖和打包内容。
+项目根 LICENSE 仅适用于本项目原创部分；不对下列独立组件附加非商业限制。
+FFmpeg 作为独立进程通过命令行处理本地媒体，仍按原 GPL v3 提供，允许用户依 GPL
+单独提取、使用、修改和再分发。FFmpeg 的许可不被本项目的原创代码许可替换。
+PySide6 / Qt / Qt WebEngine 采用其提供的 LGPL 许可选项；其第三方组件分别适用原许可。
+Qt 的许可证和来源说明见 third_party/qt；可使用相同构建步骤替换修改过的 Qt 库，
+本项目许可不禁止为调试第三方库修改而进行必要的逆向工程。
+
+离线构建附件：Python 官方安装包、PyPI wheels、Node.js 与独立 FFmpeg。
+Node.js 仅用于开发测试，不打包进应用；许可证位于 build-dependencies/node/LICENSE。
+Python 安装包来源：https://www.python.org/downloads/release/python-3142/
+Node.js 来源：https://nodejs.org/dist/v24.18.0/（下载包已核对官方 SHA256 清单）。
+每个 wheel 保留其内部许可证；独立 FFmpeg 仍适用同包 GPL v3 与源码说明。
+ 应用图标以《蔚蓝档案》佩洛洛斯拉为角色参考，使用AI进行像素同人创作。
+角色原作权利归相应权利人所有；该图标不表示游戏方或 X 官方授权、合作或背书。
+
+1.3.3 网页组件改用 Microsoft WebView2 Fixed Version Runtime 157.0.4341.60 x64。
+Microsoft.Web.WebView2 SDK 1.0.4314.35；独立网页宿主使用自包含 .NET 10.0.15。
+这些独立第三方组件适用各自许可，不附加本项目的非商业限制。
+WebView2 官方来源：https://developer.microsoft.com/microsoft-edge/webview2/
+.NET 官方来源：https://dotnet.microsoft.com/
+WebView2 SDK 许可见 third_party/webview2-notices；.NET 许可随离线 SDK/NuGet 包提供。
+EXE 内含固定网页运行时和 .NET，运行时不依赖电脑预装浏览器、WebView2 或 .NET。
+离线构建包另含官方 .NET SDK ZIP、固定 WebView2 CAB 和所需 NuGet 包。
+FFmpeg 还用于广播回放的本地无转码合并，保留其独立进程与原许可。

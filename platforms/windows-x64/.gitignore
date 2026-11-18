@@ -1,0 +1,21 @@
+.venv/
+work/
+build/
+dist/
+data/
+download/
+logs/
+__pycache__/
+*.pyc
+*.exe
+dependencies/
+webview_host/bin/
+webview_host/obj/
+third_party/webview_host/
+third_party/webview2-runtime/
+
+# Local release artifacts: upload as GitHub Releases assets.
+/release/*.zip
+/release/*.7z
+/release/*.exe
+*.part

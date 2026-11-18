@@ -1,0 +1,8 @@
+PySide6-Essentials==6.12.0
+PySide6-Addons==6.12.0
+requests[socks]==2.34.2
+beautifulsoup4==4.15.0
+Pillow==13.0.0
+typing_extensions==4.16.0
+SecretStorage==3.5.0
+cryptography==50.0.2

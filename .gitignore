@@ -1,0 +1,27 @@
+# Generated files and local state
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.venv/
+**/.venv-linux/
+**/.pytest_cache/
+platforms/*/build/
+platforms/*/dist/
+platforms/*/work/
+platforms/*/data/
+platforms/*/download/
+platforms/*/logs/
+platforms/*/dependencies/
+platforms/*/webview_host/bin/
+platforms/*/webview_host/obj/
+platforms/*/third_party/webview_host/
+platforms/*/third_party/webview2-runtime/
+platforms/*/third_party/electron/
+platforms/*/third_party/ffmpeg/ffmpeg
+*.exe
+*.part
+
+# Upload these files as GitHub Release assets.
+/release/*.zip
+/release/*.7z
+/release/*.deb
