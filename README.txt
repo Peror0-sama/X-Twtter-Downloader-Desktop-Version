@@ -1,4 +1,4 @@
-﻿XDownloader 1.3.5
+XDownloader 1.3.6
 制作人：Peror0_sama
 
 源码位置

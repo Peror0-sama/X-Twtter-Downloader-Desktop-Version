@@ -1,0 +1,3 @@
+d8b5c06952420cfc2812732483734319230621e41bd855bfadf1a2b22f6a136f  XDownloader-1.3.6-Windows-x64.zip
+f613a49dc2f6cc6cfc60b53d597004c8b5a097d46d1aa078403057277c6c2142  XDownloader-1.3.6-Windows-x86.zip
+dc7f8d7ecf8d4f6aa8ab5b3ca0eae56a00c5112429daefadc7fcd52b35b7e671  XDownloader-1.3.6-Ubuntu-24.04-x86_64.zip

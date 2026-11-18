@@ -1,4 +1,4 @@
-﻿XDownloader 1.3.5
+XDownloader 1.3.6
 制作人：Peror0_sama
 
 用途
@@ -6,7 +6,7 @@
 适用 Ubuntu 24.04 Desktop x86_64。运行依赖已内嵌。
 
 运行
-1. 完整解压 release\XDownloader-1.3.5-Ubuntu-24.04-x86_64.zip。
+1. 完整解压 release\XDownloader-1.3.6-Ubuntu-24.04-x86_64.zip。
 2. 安装解压后的 .deb，然后从应用菜单启动 XDownloader。
 3. 粘贴完整链接，点击“加入下载队列”；也可点击或拖入多个 TXT，导入后自动排队。
 4. 默认保存到 ~/.local/share/XDownloader 下的 download 文件夹。可在应用中选择其他目录，立即影响后续未开始的文件。

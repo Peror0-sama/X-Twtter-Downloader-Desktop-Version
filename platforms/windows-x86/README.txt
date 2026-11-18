@@ -1,4 +1,4 @@
-﻿XDownloader 1.3.5
+XDownloader 1.3.6
 制作人：Peror0_sama
 
 用途
@@ -6,7 +6,7 @@
 适用 Windows 10 x86（32 位）。运行依赖已内嵌。
 
 运行
-1. 完整解压 release\XDownloader-1.3.5-Windows-x86.zip。
+1. 完整解压 release\XDownloader-1.3.6-Windows-x86.zip。
 2. 双击解压后的 XDownloader\XDownloader.exe，不要直接在压缩包内运行。
 3. 粘贴完整链接，点击“加入下载队列”；也可点击或拖入多个 TXT，导入后自动排队。
 4. 默认保存到 EXE 同级 download 文件夹。可在应用中选择其他目录，立即影响后续未开始的文件。

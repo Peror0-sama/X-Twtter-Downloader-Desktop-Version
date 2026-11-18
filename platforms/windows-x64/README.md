@@ -1,6 +1,6 @@
 # XDownloader 1.3.6
 
-修复了内嵌网页无法输入的问题。下文的 1.3.5 下载包说明保留用于旧版发行包。
+修复了内嵌网页无法输入的问题。
 
 Windows 10/11 x64 本地 X / Twitter 图片、视频和动图下载器。制作人：**Peror0_sama**。
 
@@ -8,7 +8,7 @@ Windows 10/11 x64 本地 X / Twitter 图片、视频和动图下载器。制作�
 
 ## 开始使用
 
-1. 解压 `release/XDownloader-1.3.5-Windows-x64.zip`。请先完整解压，不要在 ZIP 中直接运行。
+1. 解压 `release/XDownloader-1.3.6-Windows-x64.zip`。请先完整解压，不要在 ZIP 中直接运行。
 2. 双击解压目录中的 `XDownloader/XDownloader.exe`。请先完整解压，不要在 ZIP 中直接运行。
 3. 输入链接或拖入 TXT 文件，点击“加入下载队列”。TXT 导入会自动检查并排队。
 
@@ -39,7 +39,7 @@ Windows 10/11 x64 本地 X / Twitter 图片、视频和动图下载器。制作�
 - [README.txt](README.txt)：纯文本使用说明。
 - [CHANGELOG.md](CHANGELOG.md)：版本更新记录。
 - [docs/BUILDING.md](docs/BUILDING.md)：源码结构、离线依赖和构建步骤。
-- [release/README.md](release/README.md)：1.3.5 包信息与 GitHub 发布说明。
+- [release/README.md](release/README.md)：1.3.6 包信息与 GitHub 发布说明。
 - `main.py`、`xdownloader/`：启动入口与应用源码。
 - `webview_host/`：内嵌 WebView2 网页宿主源码。
 - `tests/`、`assets/`、`third_party/`：测试、图标和第三方许可资料。

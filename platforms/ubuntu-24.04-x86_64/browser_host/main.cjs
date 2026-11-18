@@ -47,7 +47,6 @@ async function initialize() {
   wc.on('certificate-error',(event,_url,_error,_certificate,callback)=>{event.preventDefault();callback(false);});
   wc.on('render-process-gone',()=>send({type:'error',code:'browser_process'}));
   wc.on('focus',()=>{if(config.mode==='login')send({type:'browser_focus'});});
-  wc.on('before-input-event',()=>{if(config.mode==='login')send({type:'browser_focus'});});
   wc.on('did-navigate-in-page',(_e,url,isMain)=>{if(isMain)send({type:'address',url});});
   wc.on('did-fail-load',(_e,code,description,url,isMain)=>{if(isMain&&code!==-3)send({type:'navigation',ok:false,error:description,url});});
   wc.on('did-finish-load',async()=>{
@@ -94,6 +93,7 @@ async function command(input) {
   const wc=win.webContents;
   switch(input.op) {
     case 'resize':win.setContentSize(Math.max(1,input.width),Math.max(1,input.height));break;
+    case 'focus':if(config.mode==='login'&&!wc.isFocused()){win.focus();wc.focus();}break;
     case 'reload':wc.reload();break;
     case 'navigate':if(official(input.url))await wc.loadURL(input.url);break;
     case 'cookies': {
