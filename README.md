@@ -4,13 +4,13 @@ X / Twitter 图片、视频、动图及广播回放下载器。制作人：**Per
 
 ## 下载与使用
 
-三个平台的安装包统一存放在 [release](release/)。
+三个平台的安装包均可在 [Releases 发布页](https://github.com/Peror0-sama/X-Twtter-Downloader-Desktop-Version/releases/tag/v1.3.5) 下载。
 
 | 平台 | 安装包 | 源码与说明 |
 | --- | --- | --- |
-| Windows 10/11 x64 | [Windows x64](release/XDownloader-1.3.5-Windows-x64.zip) | [windows-x64](platforms/windows-x64/) |
-| Windows 10 x86（32 位） | [Windows x86](release/XDownloader-1.3.5-Windows-x86.zip) | [windows-x86](platforms/windows-x86/) |
-| Ubuntu 24.04 Desktop x86_64 | [Ubuntu x86_64](release/XDownloader-1.3.5-Ubuntu-24.04-x86_64.zip) | [ubuntu-24.04-x86_64](platforms/ubuntu-24.04-x86_64/) |
+| Windows 10/11 x64 | [Windows x64](https://github.com/Peror0-sama/X-Twtter-Downloader-Desktop-Version/releases/download/v1.3.5/XDownloader-1.3.5-Windows-x64.zip) | [windows-x64](platforms/windows-x64/) |
+| Windows 10 x86（32 位） | [Windows x86](https://github.com/Peror0-sama/X-Twtter-Downloader-Desktop-Version/releases/download/v1.3.5/XDownloader-1.3.5-Windows-x86.zip) | [windows-x86](platforms/windows-x86/) |
+| Ubuntu 24.04 Desktop x86_64 | [Ubuntu x86_64](https://github.com/Peror0-sama/X-Twtter-Downloader-Desktop-Version/releases/download/v1.3.5/XDownloader-1.3.5-Ubuntu-24.04-x86_64.zip) | [ubuntu-24.04-x86_64](platforms/ubuntu-24.04-x86_64/) |
 
 Windows：完整解压后运行 `XDownloader/XDownloader.exe`。
 
