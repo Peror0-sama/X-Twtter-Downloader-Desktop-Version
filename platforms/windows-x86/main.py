@@ -60,6 +60,13 @@ def cli(args):
 
 
 def main():
+    # Windowed PyInstaller builds have no console streams. Python 3.10
+    # argparse still writes to them when --help or invalid arguments are used.
+    import os
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
     from xdownloader.qt_runtime import prepare_qt
     prepare_qt()
     parser = argparse.ArgumentParser(description="XDownloader")

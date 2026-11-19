@@ -7,3 +7,5 @@
 - x86 与 Ubuntu 未完成实际账号登录验证；应在对应系统使用真实账号验证登录与状态保存。
 - 构建使用本机可用 Python/.NET/PyInstaller；不是原版锁定构建环境的逐字节复现。
 - Electron、WebView2 与 FFmpeg 运行时复用 1.3.5 对应平台的发布组件。
+
+- 补充回归：无控制台输出流时 `--help` 正常退出；Windows x86/x64 与 Linux 源码测试覆盖此场景。
