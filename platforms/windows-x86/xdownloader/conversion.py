@@ -21,19 +21,31 @@ def ffmpeg_path():
     return path
 
 
-def _run(arguments, stop):
+def _run(arguments, stop, timeout=600):
+    while True:
+        if stop.is_set():
+            raise DownloadError('interrupted', '任务已停止')
+        if _run_once(arguments, stop, timeout):
+            return
+
+
+def _run_once(arguments, stop, timeout):
     process = subprocess.Popen([str(ffmpeg_path()), "-hide_banner", "-loglevel", "error", "-nostdin", "-y", *arguments],
                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    deadline = time.monotonic() + 600
+    deadline = time.monotonic() + timeout if timeout else float('inf')
     try:
         while process.poll() is None:
+            if getattr(stop, 'is_paused', lambda: False)():
+                # 先终止转换/合并进程再等待，恢复时只重做本地处理，不重下源文件。
+                return False
             if stop.wait(0.15):
                 raise DownloadError("interrupted", "GIF 转换已暂停，下次启动可恢复")
             if time.monotonic() > deadline:
                 raise DownloadError("conversion_timeout", "GIF 转换超过 10 分钟，源文件已保留，可重试")
         if process.returncode:
             raise DownloadError("conversion_failed", "GIF 转换失败，请检查磁盘空间或重试；已保留下载源文件")
+        return True
     finally:
         if process.poll() is None:
             process.terminate()

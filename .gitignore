@@ -1,4 +1,5 @@
 # Generated files and local state
+/work/
 **/__pycache__/
 **/*.pyc
 **/*.pyo
@@ -25,3 +26,7 @@ platforms/*/third_party/ffmpeg/ffmpeg
 /release/*.zip
 /release/*.7z
 /release/*.deb
+
+# Private local validation output; publish only selected release assets.
+/release/修复版-*/
+/release/**/*.zip

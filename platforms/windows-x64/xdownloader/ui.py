@@ -21,8 +21,22 @@ from .engine import Engine
 from .storage import Store
 from . import __version__
 
-STATUS = {"queued": "等待中", "waiting_choice": "等待选择格式", "resolving": "解析中", "downloading": "下载中", "converting": "转换 GIF 中", "done": "已完成", "failed": "失败 · 可重试", "deleting": "正在移除"}
+STATUS = {"queued": "等待中", "paused": "已暂停", "waiting_choice": "等待选择格式", "resolving": "解析中", "downloading": "下载中", "converting": "转换 GIF 中", "done": "已完成", "failed": "失败 · 可重试", "deleting": "正在移除"}
 KINDS = {"video": "视频", "animated_gif": "动图", "photo": "图片"}
+FAILURE_LABELS = {
+    'deleted': '已删除', 'private': '无访问权限', 'sensitive': '内容限制',
+    'suspended': '账号停用', 'no_media': '无可下载媒体', 'not_found': '无法找到',
+    'unavailable': '原因未确认', 'account_parse': '接口等待超时', 'parse': '解析未完成',
+    'external_card': '外链卡片 · 警告', 'rules': 'X 规则限制', 'page_load': '页面加载失败',
+    'payload_parse': '接口解析失败', 'capture': '接口读取失败', 'api_http': '接口请求失败', 'media_http': '媒体请求失败',
+    'login_required': '需要登录', 'login_expired': '登录失效', 'rate_limit': '请求限流',
+    'access_denied': '访问被拒绝', 'account_access': '访问被拒绝', 'withheld': '地区限制',
+    'network': '网络故障', 'timeout': '网络超时', 'proxy': '代理故障', 'partial': '部分文件失败',
+}
+
+
+def failure_label(tweet):
+    return '失败 · ' + FAILURE_LABELS.get(tweet.get('error_code'), '下载未完成')
 
 # 显式设置整块背景和文字，避免 Windows 深色主题与应用浅色样式混用。
 LIGHT_SURFACES = """
@@ -76,12 +90,14 @@ def file_percent(media):
 
 def queue_progress(media, status):
     """多文件按各文件完成比例汇总；总量未知时不编造百分比。"""
-    color = '#efb3bc' if status == 'failed' else '#a8ddca' if status == 'done' else '#a9cdfa'
+    color = '#efb3bc' if status == 'failed' else '#a8ddca' if status == 'done' else '#d3d9e3' if status == 'paused' else '#a9cdfa'
     if status in ('queued', 'waiting_choice', 'resolving', 'deleting'):
         return (None if status in ('resolving', 'deleting') else 0, STATUS[status], color)
     values = [file_percent(m) for m in media]
     value = 100 if status == 'done' else min(99, sum(values) // len(values)) if values and all(v is not None for v in values) else None
-    if status == 'failed':
+    if status == 'paused':
+        label = '已暂停' if value is None else f'{value}% · 已暂停'
+    elif status == 'failed':
         label = '失败' if value is None else f'{value}% · 失败'
     elif status == 'done':
         size = sum(m.get('total', 0) for m in media)
@@ -268,7 +284,7 @@ class DownloadReport(QDialog):
         self.resize(1120, 640)
         self.setMinimumSize(860, 480)
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel('每条推文占一行。“警告”表示下载成功但作者信息未完全确认。'))
+        layout.addWidget(QLabel('每条推文占一行，失败与警告详情见“说明”。'))
         self.tabs = QTabWidget()
         self.tables = {}
         for title, group in (
@@ -290,7 +306,7 @@ class DownloadReport(QDialog):
                 done = sum(m['status']=='done' for m in tweet['media'])
                 reason = tweet['error'] if title=='失败' else tweet.get('warning') or '下载完成'
                 if title=='失败' and tweet.get('warning'):
-                    reason += '\n作者警告：'+tweet['warning']
+                    reason += '\n警告：'+tweet['warning']
                 values = [tweet['url'], '@'+tweet['username']+(' · '+tweet['display_name'] if tweet['display_name'] else ''),
                           f"{done} / {len(tweet['media'])}", reason]
                 for col, value in enumerate(values):
@@ -629,7 +645,17 @@ class MainWindow(QMainWindow):
         tree.itemDoubleClicked.connect(lambda item, _: self.double_click_item(item, completed))
         if not completed:
             tree.setExpandsOnDoubleClick(False)
+            tree.itemClicked.connect(self.click_queue_item)
         layout.addWidget(tree, 1)
+        if not completed:
+            pause_row = QHBoxLayout()
+            self.pause_all_button = QPushButton('全部暂停')
+            self.pause_all_button.clicked.connect(lambda: self.pause_queue_items({t['id'] for t in self.store.snapshot()}))
+            self.resume_all_button = QPushButton('全部恢复')
+            self.resume_all_button.clicked.connect(lambda: self.resume_queue_items({t['id'] for t in self.store.snapshot()}))
+            pause_row.addWidget(self.pause_all_button)
+            pause_row.addWidget(self.resume_all_button)
+            layout.addLayout(pause_row)
         row = QHBoxLayout()
         if completed:
             open_file = QPushButton("打开所选文件")
@@ -848,6 +874,11 @@ class MainWindow(QMainWindow):
             menu.addAction('删除该作者所有已完成记录' if is_author else '删除已完成记录', lambda: self.delete_queue_items(ids, True))
         else:
             menu.addAction('开始下载该作者所有' if is_author else '开始下载', lambda: self.start_queue_items(ids))
+            rows = [self.store.tweet(tid) for tid in ids]
+            if any(t and t['status'] in ('queued','resolving','downloading','waiting_choice') for t in rows):
+                menu.addAction('暂停该作者所有' if is_author else '暂停下载', lambda: self.pause_queue_items(ids))
+            if any(t and t['status'] == 'paused' for t in rows):
+                menu.addAction('恢复该作者所有' if is_author else '恢复下载', lambda: self.resume_queue_items(ids))
             menu.addSeparator()
             menu.addAction('删除该作者所有下载计划' if is_author else '删除下载计划', lambda: self.delete_queue_items(ids, False))
         return menu
@@ -887,11 +918,38 @@ class MainWindow(QMainWindow):
         self.last_snapshot = None
         self.tick()
 
+    def pause_queue_items(self, ids):
+        count = sum(bool(self.engine.pause(tid)) for tid in ids)
+        self.detail.setPlainText(f'已暂停 {count} 条下载计划。点击暂停项目可恢复。')
+        self.last_snapshot = None
+        self.tick()
+
+    def resume_queue_items(self, ids):
+        count = sum(bool(self.engine.resume(tid)) for tid in ids)
+        self.detail.setPlainText(f'已恢复 {count} 条下载计划。')
+        self.last_snapshot = None
+        self.tick()
+
+    def click_queue_item(self, item, column):
+        if QApplication.keyboardModifiers() != Qt.KeyboardModifier.NoModifier:
+            return
+        # 点击展开箭头仅展开；点击作者行则切换该作者的任务。
+        from PySide6.QtGui import QCursor
+        if self.active.viewport().mapFromGlobal(QCursor.pos()).x() < self.active.visualItemRect(item).left():
+            return
+        ids = self.item_ids(item)
+        rows = [self.store.tweet(tid) for tid in ids]
+        if any(t and t['status'] in ('queued','resolving','downloading','waiting_choice') for t in rows):
+            self.pause_queue_items(ids)
+        elif any(t and t['status'] == 'paused' for t in rows):
+            self.resume_queue_items(ids)
+
     def double_click_item(self, item, completed):
         if completed:
             self.open_item(item, True)
         else:
-            self.start_queue_items(self.item_ids(item))
+            ids = self.item_ids(item)
+            self.start_queue_items(ids)
 
     def open_completed_target(self, tweet_ids, mid='', launch_file=False, launch_all=False):
         media = [m for tid in sorted(tweet_ids) for m in self.store.media(tid) if m['status']=='done' and (not mid or m['media_id']==mid)]
@@ -1039,8 +1097,12 @@ class MainWindow(QMainWindow):
         for tweet in snapshot:
             for media in tweet['media']:
                 media.update(transfer.get((tweet['id'], media['media_id']), {}))
+                if tweet['status'] == 'paused' and media['status'] != 'done':
+                    media.update(status='paused', speed=0)
         self.check_tray_completion(snapshot)
         self.clear_failed_button.setEnabled(any(t['status'] == 'failed' for t in snapshot))
+        self.pause_all_button.setEnabled(any(t['status'] in ('queued','resolving','downloading','waiting_choice') for t in snapshot))
+        self.resume_all_button.setEnabled(any(t['status'] == 'paused' for t in snapshot))
         self.report_button.setEnabled(bool(snapshot) and not self.engine.busy() and not self.import_jobs and all(t['status'] in ('done','failed') for t in snapshot))
         # 仅向执行池预派发少量任务，其余持久化在数据库里，避免巨量 Future 占用内存。
         with self.engine.lock:
@@ -1089,15 +1151,15 @@ class MainWindow(QMainWindow):
             failed = sum(t["status"] == "failed" for t in group)
             warnings = sum(bool(t.get('warning')) for t in group)
             status = (f"{failed} 条失败" if failed else "等待选择格式" if any(t["status"] == "waiting_choice" for t in group) else
-                      "已完成" if all(t["status"] == "done" for t in group) else "进行中")
+                      "已完成" if all(t["status"] == "done" for t in group) else "已暂停" if all(t['status']=='paused' for t in group) else "部分暂停" if any(t['status']=='paused' for t in group) else "进行中")
             if warnings and status == '已完成':
                 status = '已完成 · 警告'
             account_item = QTreeWidgetItem([label, status, f"{len(group)} 帖 · {done}/{len(media)} 文件"])
-            aggregate_status = 'failed' if failed else 'done' if all(t['status']=='done' for t in group) else 'downloading'
+            aggregate_status = 'failed' if failed else 'done' if all(t['status']=='done' for t in group) else 'paused' if all(t['status']=='paused' for t in group) else 'downloading'
             progress_media = media + [dict(status=t['status'], downloaded=0, total=0) for t in group if not t['media']]
             set_queue_progress(account_item, progress_media, aggregate_status)
             value, _, color = account_item.data(2, PROGRESS_ROLE)
-            summary = (f'{value}%' if value is not None else '失败' if failed else '处理中') + f' · {len(group)} 帖'
+            summary = (f'{value}%' if value is not None else '失败' if failed else '已暂停' if aggregate_status == 'paused' else '处理中') + f' · {len(group)} 帖'
             account_item.setText(2, summary)
             account_item.setData(2, PROGRESS_ROLE, (value, summary, color))
             key = ("@account", account)
@@ -1131,6 +1193,7 @@ class MainWindow(QMainWindow):
         for c in range(3):
             parent.setToolTip(c, detail)
         if tweet["status"] == "failed":
+            parent.setText(1, failure_label(tweet))
             parent.setForeground(1, QColor("#cc3848"))
         elif tweet["status"] == "done":
             parent.setForeground(1, QColor('#a66408' if tweet.get('warning') else "#178264"))

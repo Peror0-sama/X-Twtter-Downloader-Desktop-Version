@@ -12,7 +12,7 @@ import threading
 import time
 from urllib.parse import urljoin
 
-from .conversion import ffmpeg_path
+from .conversion import ffmpeg_path, _run
 from .core import DownloadError, http_error, make_session, validate_media_url
 
 
@@ -113,6 +113,8 @@ def download_hls(url, part: Path, mode, proxy, stop, progress, segment_progress=
                 if stop.is_set():
                     raise DownloadError('interrupted', '下载已暂停，下次启动可恢复')
                 data, _ = pending.popleft().result()
+                if stop.is_set():
+                    raise DownloadError('interrupted', '任务已停止')
                 stream.write(data)
                 downloaded += len(data)
                 completed += 1
@@ -124,24 +126,15 @@ def download_hls(url, part: Path, mode, proxy, stop, progress, segment_progress=
             os.fsync(stream.fileno())
         if segment_progress:
             segment_progress(completed, len(segments), 'merging')
-        process = subprocess.Popen([str(ffmpeg_path()), '-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
-            '-protocol_whitelist', 'file,pipe', '-i', str(part), '-map', '0:v:0', '-map', '0:a?',
-            '-c', 'copy', '-movflags', '+faststart', '-f', 'mp4', str(output)],
-            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         try:
-            while process.poll() is None:
-                if stop.wait(0.15):
-                    raise DownloadError('interrupted', '回放合并已暂停，下次启动可恢复')
-            if process.returncode:
-                raise DownloadError('hls_mux', '回放合并失败，请检查磁盘空间后重试')
-        finally:
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill(); process.wait()
+            _run(['-protocol_whitelist', 'file,pipe', '-i', str(part), '-map', '0:v:0', '-map', '0:a?',
+                  '-c', 'copy', '-movflags', '+faststart', '-f', 'mp4', str(output)], stop, timeout=None)
+        except DownloadError as exc:
+            if exc.code == 'conversion_failed':
+                raise DownloadError('hls_mux', '回放合并失败，请检查磁盘空间后重试') from None
+            raise
+        if stop.is_set():
+            raise DownloadError('interrupted', '任务已停止')
         output.replace(part)
         return duration
     finally:

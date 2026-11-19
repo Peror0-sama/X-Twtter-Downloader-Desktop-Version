@@ -59,7 +59,7 @@ class AuthorTests(unittest.TestCase):
         self.assertIn('显示名称',result.warning)
 
     def test_target_restrictions_are_classified_without_guessing(self):
-        for reason,code in [('Suspended','suspended'),('Protected','private'),('AuthorOnly','private'),('Deleted','not_found'),('UnknownReason','unavailable')]:
+        for reason,code in [('Suspended','suspended'),('Protected','private'),('AuthorOnly','private'),('Deleted','deleted'),('UnknownReason','unavailable')]:
             with self.subTest(reason=reason), self.assertRaises(DownloadError) as error:
                 parse_page(page({'rest_id':TARGET.tweet_id,'result':{'__typename':'TweetUnavailable','unavailable_reason':reason}}),TARGET)
             self.assertEqual(error.exception.code,code)

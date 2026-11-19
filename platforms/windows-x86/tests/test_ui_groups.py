@@ -44,6 +44,23 @@ class GroupedQueueTests(unittest.TestCase):
         self.assertFalse(self.window.tray.icon().isNull())
         self.assertEqual(self.window.windowIcon().cacheKey(), self.window.tray.icon().cacheKey())
 
+    def test_pause_buttons_and_single_click_toggle(self):
+        w = self.window
+        ids, _ = w.store.add_urls([normalize_url('https://x.com/alice/status/111111')], gif_mode='mp4')
+        with patch.object(w.engine, 'enqueue'), patch('PySide2.QtGui.QCursor.pos', return_value=w.active.viewport().mapToGlobal(w.active.viewport().rect().center())):
+            w.tick()
+            self.assertTrue(w.pause_all_button.isEnabled())
+            w.pause_all_button.click()
+            self.assertEqual(w.store.tweet(ids[0])['status'], 'paused')
+            self.assertTrue(w.resume_all_button.isEnabled())
+            self.assertEqual(w.active.topLevelItem(0).text(1), '已暂停')
+            w.click_queue_item(w.active.topLevelItem(0), 0)
+            self.assertEqual(w.store.tweet(ids[0])['status'], 'queued')
+            w.click_queue_item(w.active.topLevelItem(0), 0)
+            self.assertEqual(w.store.tweet(ids[0])['status'], 'paused')
+            w.resume_all_button.click()
+            self.assertEqual(w.store.tweet(ids[0])['status'], 'queued')
+
     def test_close_choice_remembered_and_settings_can_change(self):
         from PySide2.QtGui import QCloseEvent
         w = self.window
@@ -417,6 +434,8 @@ class GroupedQueueTests(unittest.TestCase):
         menu.deleteLater()
 
     def test_active_double_click_retries_post_without_opening_file(self):
+        self.window.store.add_urls([normalize_url('https://x.com/alice/status/111111')])
+        self.window.store.update_tweet('111111', status='failed')
         self.window.populate(self.window.active,[row('111111',status='failed')])
         item=self.window.active.topLevelItem(0).child(0).child(0)
         with patch.object(self.window,'start_queue_items') as start,patch.object(self.window,'open_item') as opened:

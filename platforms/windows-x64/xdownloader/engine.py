@@ -62,15 +62,28 @@ def verify_file(path: Path) -> tuple[str, int, str]:
 
 
 class _StopSignal:
-    def __init__(self, global_stop, local_stop=None):
+    def __init__(self, global_stop, local_stop=None, pause=None):
         self.global_stop, self.local_stop = global_stop, local_stop
+        self.pause = pause
+        self.paused_seconds = 0.0
+
+    def cancelled(self):
+        return self.global_stop.is_set() or bool(self.local_stop and self.local_stop.is_set())
+
+    def is_paused(self):
+        return bool(self.pause and self.pause.is_set())
 
     def is_set(self):
-        return self.global_stop.is_set() or bool(self.local_stop and self.local_stop.is_set())
+        # 下载线程在检查点等待；取消、移除和退出仍可随时唤醒它。
+        started = time.monotonic()
+        while self.is_paused() and not self.cancelled():
+            self.global_stop.wait(0.05)
+        self.paused_seconds += time.monotonic() - started
+        return self.cancelled()
 
     def wait(self, timeout):
         end = time.monotonic() + timeout
-        while not self.is_set():
+        while not self.cancelled():
             remaining = end - time.monotonic()
             if remaining <= 0:
                 return False
@@ -86,9 +99,11 @@ class Engine:
         self.tweet_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="tweet")
         self.media_pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="media")
         self.stop = threading.Event()
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.pending = {}
         self.cancel_events = {}
+        self.pause_events = {}
+        self.paused_states = {}
         self.deleting = set()
         self.closed = False
         self.transfer_progress = {}
@@ -106,9 +121,10 @@ class Engine:
     def enqueue(self, tweet_id: str):
         with self.lock:
             row = self.store.tweet(tweet_id)
-            if self.stop.is_set() or tweet_id in self.pending or not row or row['status'] in ('done','deleting'):
+            if self.stop.is_set() or tweet_id in self.pending or not row or row['status'] in ('done','deleting','paused'):
                 return
             self.cancel_events[tweet_id] = threading.Event()
+            self.pause_events[tweet_id] = threading.Event()
             future = self.tweet_pool.submit(self.run_tweet, tweet_id)
             self.pending[tweet_id] = future
         future.add_done_callback(lambda _: self._finished(tweet_id))
@@ -120,13 +136,60 @@ class Engine:
                 self.deleting.discard(tweet_id)
             self.pending.pop(tweet_id, None)
             self.cancel_events.pop(tweet_id, None)
+            self.pause_events.pop(tweet_id, None)
+            row = self.store.tweet(tweet_id)
+            if not row or row['status'] != 'paused':
+                self.paused_states.pop(tweet_id, None)
         self.events.put(("refresh", tweet_id))
 
     def busy(self):
         with self.lock:
             return bool(self.pending)
 
+    def pause(self, tweet_id):
+        with self.lock:
+            row = self.store.tweet(tweet_id)
+            if self.stop.is_set() or not row or row['status'] not in ('queued','resolving','downloading','waiting_choice'):
+                return False
+            self.paused_states[tweet_id] = row['status']
+            self.pause_events.setdefault(tweet_id, threading.Event()).set()
+            self.store.update_tweet(tweet_id, status='paused')
+            # 尚未开始的 Future 直接退出排队，不占用工作线程。
+            future = self.pending.get(tweet_id)
+            if future is not None:
+                future.cancel()
+        self.events.put(('refresh', tweet_id))
+        return True
+
+    def resume(self, tweet_id):
+        with self.lock:
+            row = self.store.tweet(tweet_id)
+            if self.stop.is_set() or not row or row['status'] != 'paused':
+                return False
+            previous = self.paused_states.pop(tweet_id, 'queued')
+            status = previous if tweet_id in self.pending or previous in ('done','failed','waiting_choice') else 'queued'
+            # 格式选择可能在同批次其他任务处完成，重新解析会复用已保存媒体。
+            if status == 'waiting_choice':
+                status = 'queued'
+            self.store.update_tweet(tweet_id, status=status)
+            event = self.pause_events.get(tweet_id)
+            if event is not None:
+                event.clear()
+        self.events.put(('refresh', tweet_id))
+        if status == 'queued':
+            self.enqueue(tweet_id)
+        return True
+
+    def update_state(self, tweet_id, **values):
+        with self.lock:
+            if tweet_id in self.paused_states and 'status' in values:
+                self.paused_states[tweet_id] = values['status']
+                values['status'] = 'paused'
+            self.store.update_tweet(tweet_id, **values)
+
     def retry(self, tweet_id, auth_mode):
+        if self.store.tweet(tweet_id) and self.store.tweet(tweet_id)['status'] == 'paused':
+            return self.resume(tweet_id)
         with self.lock:
             row = self.store.tweet(tweet_id)
             if tweet_id in self.pending or not row or row['status'] in ('done','deleting'):
@@ -156,7 +219,7 @@ class Engine:
             return self.store.delete_records(set(tweet_ids)-set(self.pending), completed=True)
 
     def stop_signal(self, tweet_id=None):
-        return _StopSignal(self.stop, self.cancel_events.get(tweet_id))
+        return _StopSignal(self.stop, self.cancel_events.get(tweet_id), self.pause_events.get(tweet_id))
 
     def request_stop(self):
         self.stop.set()
@@ -189,7 +252,7 @@ class Engine:
                         errors.append(str(partial))
                 # 最终文件与其校验值保留：重命名后中断也能在重试时恢复。
                 self.store.update_media(tweet_id, media["media_id"], status="queued", downloaded=0, total=0, speed=0, source_sha256="", error="")
-            self.store.update_tweet(tweet_id, status="queued", error="", error_code="")
+            self.store.update_tweet(tweet_id, status="paused" if tweet['status'] == 'paused' else "queued", error="", error_code="")
         return errors
 
     def check_stop(self, tweet_id=None):
@@ -202,7 +265,7 @@ class Engine:
             return
         try:
             self.check_stop(tweet_id)
-            self.store.update_tweet(tweet_id, status="resolving", error="", error_code="")
+            self.update_state(tweet_id, status="resolving", error="", error_code="", warning="")
             with self.lock:
                 self.transfer_progress = {k:v for k,v in self.transfer_progress.items() if k[0] != tweet_id}
             mode = self.store.setting("proxy_mode", "system")
@@ -220,13 +283,16 @@ class Engine:
 
             tweet = fetch()
             self.check_stop(tweet_id)
-            self.store.save_tweet(tweet)
-            if any(m.kind == "animated_gif" and m.extension == "mp4" and not m.error for m in tweet.media):
-                if self.store.wait_for_format(tweet_id):
-                    self.events.put(("gif_choice", row["batch_id"]))
-                    return
+            with self.lock:
+                self.store.save_tweet(tweet)
+                if any(m.kind == "animated_gif" and m.extension == "mp4" and not m.error for m in tweet.media):
+                    if self.store.wait_for_format(tweet_id):
+                        self.update_state(tweet_id, status='waiting_choice')
+                        self.events.put(("gif_choice", row["batch_id"]))
+                        return
+            self.check_stop(tweet_id)
             gif_mode = self.store.batch_mode(row["batch_id"]) or "mp4"
-            self.store.update_tweet(tweet_id, status="downloading", error="")
+            self.update_state(tweet_id, status="downloading", error="")
             current = {m.media_id: m for m in tweet.media}
             futures = []
             for media in self.store.media(tweet_id):
@@ -245,13 +311,13 @@ class Engine:
             rows = self.store.media(tweet_id)
             failed = [r for r in rows if r["status"] != "done"]
             if failed:
-                self.store.update_tweet(tweet_id, status="failed", error_code="partial", error=f"{len(failed)}/{len(rows)} 个文件未完成：" + failed[0]["error"])
+                self.update_state(tweet_id, status="failed", error_code="partial", error=f"{len(failed)}/{len(rows)} 个文件未完成：" + failed[0]["error"])
             else:
-                self.store.update_tweet(tweet_id, status="done", error="", error_code="")
+                self.update_state(tweet_id, status="done", error="", error_code="")
         except DownloadError as exc:
-            self.store.update_tweet(tweet_id, status="queued" if exc.code == "interrupted" else "failed", error=str(exc), error_code=exc.code)
+            self.update_state(tweet_id, status="queued" if exc.code == "interrupted" else "failed", error=str(exc), error_code=exc.code, warning=exc.warning)
         except Exception as exc:
-            self.store.update_tweet(tweet_id, status="failed", error=f"处理失败（{type(exc).__name__}），请重试", error_code="internal")
+            self.update_state(tweet_id, status="failed", error=f"处理失败（{type(exc).__name__}），请重试", error_code="internal")
         self.events.put(("refresh", tweet_id))
 
     def clear_history(self, expired_only=False):
@@ -302,6 +368,7 @@ class Engine:
                     pass
             if not reuse:
                 self._fetch_part(tweet_id, mid, media["url"], part, mode, proxy)
+            self.check_stop(tweet_id)
             self.set_transfer_progress(tweet_id, mid, _phase='verifying')
             extension, size, digest = verify_file(part)
             self.store.update_media(tweet_id, mid, source_sha256=digest)
@@ -327,7 +394,7 @@ class Engine:
                 except OSError:
                     pass  # 成品已保存；残留临时源文件不应让成功任务变为失败。
         except requests.RequestException as exc:
-            raise network_error(exc) from None
+            raise network_error(exc, '媒体下载失败') from None
         finally:
             try:
                 converted.unlink(missing_ok=True)
@@ -347,7 +414,7 @@ class Engine:
             # 媒体 CDN 无需账号 Cookie；禁止将 X 登录凭据发给媒体或其他站点。
             with session.get(url, stream=True, timeout=(10, 30), allow_redirects=False) as response:
                 if response.status_code != 200:
-                    raise http_error(response.status_code)
+                    raise DownloadError('media_http', f'媒体下载失败（HTTP {response.status_code}）：媒体服务器拒绝请求或暂不可用，不能据此判断推文已删除', response.status_code >= 500 or response.status_code == 429)
                 content_type = response.headers.get("Content-Type", "").lower()
                 if "text/html" in content_type or "application/json" in content_type:
                     raise DownloadError("content_type", "媒体服务器返回了错误页面，而非媒体文件")
@@ -364,6 +431,7 @@ class Engine:
                         if now - last >= 0.3:
                             self.store.update_media(tweet_id, mid, downloaded=downloaded, speed=downloaded / max(now - started, 0.001))
                             last = now
+                    self.check_stop(tweet_id)
                     stream.flush()
                     os.fsync(stream.fileno())
                 if total and downloaded != total:

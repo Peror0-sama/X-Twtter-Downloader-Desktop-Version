@@ -246,7 +246,7 @@ class Store:
             return tweets
 
     def update_tweet(self, tweet_id, **values):
-        allowed = {"username", "display_name", "status", "error", "error_code", "auth_mode"}
+        allowed = {"username", "display_name", "status", "error", "error_code", "auth_mode", "warning"}
         if not values or not values.keys() <= allowed:
             raise ValueError("Invalid tweet fields")
         with self.connect() as db:

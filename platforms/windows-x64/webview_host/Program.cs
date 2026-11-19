@@ -107,9 +107,13 @@ internal sealed class BrowserForm : Form
                 Program.Send(new { type = "navigation", ok = e.IsSuccess, error = e.WebErrorStatus.ToString(), url = core.Source });
                 if (e.IsSuccess && mode == "resolve")
                 {
-                    var raw = await core.ExecuteScriptAsync("document.documentElement.outerHTML");
-                    var html = JsonSerializer.Deserialize<string>(raw);
-                    if (html?.Length <= 8388608) Program.Send(new { type = "html", html });
+                    try
+                    {
+                        var raw = await core.ExecuteScriptAsync("document.documentElement.outerHTML");
+                        var html = JsonSerializer.Deserialize<string>(raw);
+                        if (html?.Length <= 8388608) Program.Send(new { type = "html", html });
+                    }
+                    catch (Exception) { /* 初始 HTML 不是目标接口，继续等待接口及页面状态。 */ }
                 }
             };
             if (config.TryGetProperty("cookies", out var cookies))
@@ -161,10 +165,11 @@ internal sealed class BrowserForm : Form
         if (mode != "resolve" || payloadCount >= 8 || !Official(e.Request.Uri)) return;
         var uri = new Uri(e.Request.Uri);
         if (!uri.AbsolutePath.Contains("/graphql/")) return;
+        bool matches = false;
         try
         {
             var variables = Variable(uri.Query);
-            bool matches = variables != null && Matches(variables);
+            matches = variables != null && Matches(variables);
             if (variables == null && e.Request.Method == "POST" && e.Request.Content is Stream content)
             {
                 using var reader = new StreamReader(content, leaveOpen: true);
@@ -180,14 +185,18 @@ internal sealed class BrowserForm : Form
             int count;
             while ((count = await stream.ReadAsync(chunk)) > 0)
             {
-                if (buffer.Length + count > 8388608) return;
+                if (buffer.Length + count > 8388608)
+                {
+                    Program.Send(new { type = "capture_error", target = true, detail = "ResponseTooLarge" });
+                    return;
+                }
                 await buffer.WriteAsync(chunk.AsMemory(0, count));
             }
             var payload = JsonDocument.Parse(buffer.ToArray()).RootElement.Clone();
             payloadCount++;
             Program.Send(new { type = "payload", status, payload });
         }
-        catch (Exception) { Program.Send(new { type = "capture_error" }); }
+        catch (Exception exc) { Program.Send(new { type = "capture_error", target = matches, detail = exc.GetType().Name }); }
     }
     async Task ReadCommands()
     {
@@ -222,6 +231,9 @@ internal sealed class BrowserForm : Form
                     foreach (var cookie in await core.CookieManager.GetCookiesAsync("https://x.com"))
                         if (cookie.Domain.TrimStart('.') == "x.com" && cookie.Name is "auth_token" or "ct0" or "twid") saved[cookie.Name] = cookie.Value;
                     Program.Send(new { type = "cookies", cookies = saved }); break;
+                case "page_status":
+                    var pageStatus = await core.ExecuteScriptAsync(TextValue("page_status_script", "JSON.stringify({url:location.href,has_article:!!document.querySelector('main article'),text:(document.querySelector('main')?.innerText||'').slice(0,4096)})"));
+                    Program.Send(new { type = "page_status", result = JsonSerializer.Deserialize<string>(pageStatus) }); break;
                 case "probe":
                     var probe = await core.ExecuteScriptAsync("JSON.stringify({h264:document.createElement('video').canPlayType('video/mp4; codecs=\"avc1.42E01E\"'),aac:document.createElement('video').canPlayType('audio/mp4; codecs=\"mp4a.40.2\"'),videos:Array.from(document.querySelectorAll('video')).map(v=>({duration:v.duration,time:v.currentTime,paused:v.paused,ready:v.readyState,error:v.error?.code||0}))})");
                     Program.Send(new { type = "probe", result = JsonSerializer.Deserialize<string>(probe) }); break;

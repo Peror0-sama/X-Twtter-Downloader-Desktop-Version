@@ -1,6 +1,6 @@
-# XDownloader 1.3.6
+# XDownloader 1.4.0
 
-修复了内嵌网页无法输入的问题。
+新增下载暂停功能，修复视频下载问题。
 
 Windows 10 x86（32 位） 本地 X / Twitter 图片、视频和动图下载器。制作人：**Peror0_sama**。
 
@@ -8,7 +8,7 @@ Windows 10 x86（32 位） 本地 X / Twitter 图片、视频和动图下载器�
 
 ## 开始使用
 
-1. 解压 `release/XDownloader-1.3.6-Windows-x86.zip`。请先完整解压，不要在 ZIP 中直接运行。
+1. 解压 `release/XDownloader-1.4.0-Windows-x86.zip`。请先完整解压，不要在 ZIP 中直接运行。
 2. 双击解压目录中的 `XDownloader/XDownloader.exe`。请先完整解压，不要在 ZIP 中直接运行。
 3. 输入链接或拖入 TXT 文件，点击“加入下载队列”。TXT 导入会自动检查并排队。
 
@@ -22,7 +22,7 @@ Windows 10 x86（32 位） 本地 X / Twitter 图片、视频和动图下载器�
 - 同一推文的多个媒体全部下载；连续粘贴的 `https://` 链接自动分行。支持一次导入多个 TXT。
 - 文件按 `用户名_显示名称_媒体序号_唯一编号.扩展名` 保存。名称无法确认时保留下载并显示警告。
 - X 以 MP4 提供的动图可保留 MP4 或转换 GIF，支持整批统一选择或逐个选择。选择后不能更改；转换 GIF 需要额外时间与空间，并受到 GIF 格式限制。
-- 按作者分组，默认折叠；每个计划显示进度。右键管理任务和文件，失败后手动重试。
+- 按作者分组，默认折叠；每个计划显示进度。点击进行中的计划可暂停，再次点击恢复；支持全部暂停、全部恢复，失败后手动重试。
 - 历史按每条任务结束时间保留 72 小时，也可手动清除。历史保留期间按推文或广播 ID 去重，清除后允许再次下载；不做跨帖媒体内容去重。
 - 下载结束可查看失败、警告、成功分类报告；支持系统、手动代理或直连及网络测试。
 - 支持托盘后台下载、完成通知、退出方式记忆、队列恢复和单实例运行。
@@ -39,7 +39,7 @@ Windows 10 x86（32 位） 本地 X / Twitter 图片、视频和动图下载器�
 - [README.txt](README.txt)：纯文本使用说明。
 - [CHANGELOG.md](CHANGELOG.md)：版本更新记录。
 - [docs/BUILDING.md](docs/BUILDING.md)：源码结构、离线依赖和构建步骤。
-- [release/README.md](release/README.md)：1.3.6 包信息与 GitHub 发布说明。
+- [release/README.md](release/README.md)：1.4.0 包信息与 GitHub 发布说明。
 - `main.py`、`xdownloader/`：启动入口与应用源码。
 - `webview_host/`：内嵌 WebView2 网页宿主源码。
 - `tests/`、`assets/`、`third_party/`：测试、图标和第三方许可资料。

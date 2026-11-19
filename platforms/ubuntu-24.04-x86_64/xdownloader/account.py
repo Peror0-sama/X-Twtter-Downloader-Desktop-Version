@@ -106,17 +106,37 @@ def set_browser_resolver(resolver):
 
 
 def parse_account_payload(payload, target):
+    if not isinstance(payload, dict):
+        raise DownloadError('payload_parse', '接口解析失败：X 返回的数据不是预期的对象')
+    errors = payload.get('errors') if isinstance(payload, dict) else None
+    if errors and not payload.get('data'):
+        codes = {str(item.get('code')) for item in errors if isinstance(item, dict)}
+        if codes & {'32', '89', '353'}:
+            raise DownloadError('login_expired', '登录失效：请在登录窗口重新登录或完成账号验证')
+        if codes & {'88', '429'}:
+            raise DownloadError('rate_limit', '请求过于频繁：X 暂时限制访问，请稍后手动重试')
+        if '63' in codes:
+            raise DownloadError('suspended', '作者账号已被停用或封禁，当前无法访问该推文')
+        if '179' in codes:
+            raise DownloadError('private', '无访问权限：X 明确表示当前账号无权查看此推文')
+        if '144' in codes:
+            raise DownloadError('not_found', '无法找到推文：X 未提供此内容，但未确认是否已删除')
     if isinstance(payload, dict) and 'data' in payload:
         data = payload.get('data') or {}
         if 'tweetResult' in data:
             result = (data.get('tweetResult') or {}).get('result')
             if not result:
-                raise DownloadError('unavailable', 'X 未返回此推文：可能已删除或当前账号无权查看，无法进一步确认原因')
+                raise DownloadError('unavailable', '无法访问 · 原因未确认：X 未返回目标推文，不能据此判定已删除或没有权限')
             # 单条接口的不可见结果有时不包含推文 ID，绑定本次请求的目标。
+            if not isinstance(result, dict):
+                raise DownloadError('payload_parse', '接口解析失败：目标推文数据结构不完整')
+            result_id = str(result.get('rest_id') or (result.get('legacy') or {}).get('id_str') or '')
+            if result_id and result_id != target.tweet_id:
+                raise DownloadError('payload_parse', '接口解析失败：返回的推文 ID 与下载目标不符')
             payload = {'rest_id': target.tweet_id, 'result': result}
         elif not data:
-            raise DownloadError('unavailable', 'X 未返回此推文：可能已删除或当前账号无权查看，无法进一步确认原因')
-    document = json.dumps(payload, ensure_ascii=False).replace('<', '\u003c')
+            raise DownloadError('unavailable', '无法访问 · 原因未确认：X 未返回目标推文，不能据此判定已删除或没有权限')
+    document = json.dumps(payload, ensure_ascii=False).replace('<', '\\u003c')
     return parse_page('<script type="application/json">' + document + '</script>', target, authenticated=True)
 
 
@@ -157,7 +177,7 @@ def _authenticated_page(target, mode, proxy, cookies, stop=None):
                     return parse_page(b''.join(chunks).decode('utf-8', 'replace'), target, authenticated=True)
             raise DownloadError('account_access', 'X 页面重复跳转，请在登录窗口检查账号状态')
     except requests.RequestException as exc:
-        raise network_error(exc) from None
+        raise network_error(exc, '推文页面请求失败') from None
 
 
 def resolve_authenticated(target, mode, proxy, cookies, stop=None):
@@ -176,7 +196,7 @@ def resolve_authenticated(target, mode, proxy, cookies, stop=None):
     try:
         return _authenticated_page(target, mode, proxy, cookies, stop)
     except DownloadError as exc:
-        if exc.code not in {'parse', 'sensitive', 'private', 'login_required', 'login_expired', 'account_access', 'page_size'}:
+        if exc.code not in {'parse', 'sensitive', 'private', 'login_required', 'login_expired', 'account_access', 'page_size', 'timeout', 'network'}:
             raise
         if _browser_resolver is None:
             if exc.code == 'parse':
